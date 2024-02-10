@@ -1,3 +1,4 @@
 Bdd/*
 RabbitMQ/data/mnesia/*
 RabbitMQ/data/log/*
+app/Symfony/*

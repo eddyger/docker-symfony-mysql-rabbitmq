@@ -1,15 +1,15 @@
 version: "3.9"
 
 services:
-  todo-web:
-    container_name: todo_web
-    image: todo-web
+  app-web:
+    container_name: app_web
+    image: app-web
     ports:
       - "8094:80"
     volumes:
       - "./../app:/app"
     extra_hosts:
-      - "todo.loc:127.0.0.1"
+      - "app.loc:127.0.0.1"
       - "host.docker.internal:host-gateway"
     build:
       context: ./web
@@ -37,7 +37,7 @@ services:
        - MYSQL_RANDOM_ROOT_PASSWORD=false
     
   rabbit-mq:
-    container_name: todo-rabbit_mq
+    container_name: app-rabbit_mq
     image: rabbit-mq
     build:
       context: ./rabbit-mq
