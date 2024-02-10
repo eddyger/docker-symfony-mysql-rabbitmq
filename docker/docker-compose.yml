@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  todo-web:
+    container_name: todo_web
+    image: todo-web
+    ports:
+      - "8094:80"
+    volumes:
+      - "./../app:/app"
+    extra_hosts:
+      - "todo.loc:127.0.0.1"
+      - "host.docker.internal:host-gateway"
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        DEBIAN_VERSION: ${DEBIAN_VERSION}
+        DEBIAN_RELEASE: ${DEBIAN_RELEASE}
+        PHP_VERSION: ${PHP_VERSION}
+  
+  mysql-db:
+    image: mysql-8
+    container_name: mysql_db
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    ports:
+      - "3306:3306"
+    volumes:
+      - "./../Bdd/mysql-data-files:/var/lib/mysql"
+    expose:
+      - "3306"
+    environment:
+       - MYSQL_ROOT_PASSWORD='root'
+       - MYSQL_ALLOW_EMPTY_PASSWORD=false
+       - MYSQL_RANDOM_ROOT_PASSWORD=false
+    
+  rabbit-mq:
+    container_name: todo-rabbit_mq
+    image: rabbit-mq
+    build:
+      context: ./rabbit-mq
+      dockerfile: Dockerfile
+    ports:
+      - 5673:5672
+      - 15673:15672
+    volumes:
+      - './../RabbitMQ/data/mnesia:/data/mnesia'
+      - './../RabbitMQ/data/log:/data/log'   
+        
