@@ -87,6 +87,9 @@ RUN pecl install xdebug-3.3.1 \
 RUN echo "xdebug.idekey = VSCODE" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini
 #RUN echo "xdebug.log = /app/Symfony/xdebug.log" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini
 
+#don't enable xdebug for cli
+RUN rm /etc/php/$PHP_VERSION/cli/conf.d/20-xdebug.ini
+
 #amqp for rabbitmq
 RUN apt-get install php$PHP_VERSION-amqp -y
 
