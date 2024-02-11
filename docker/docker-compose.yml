@@ -47,5 +47,7 @@ services:
       - 15673:15672
     volumes:
       - './../RabbitMQ/data/mnesia:/data/mnesia'
-      - './../RabbitMQ/data/log:/data/log'   
-        
+      - './../RabbitMQ/data/log:/data/log'  
+    environment:
+      - HOSTNAME=rabbit 
+    hostname: rabbit

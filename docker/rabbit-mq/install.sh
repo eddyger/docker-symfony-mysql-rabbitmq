@@ -32,3 +32,24 @@ apt-get install -y erlang-base \
 
 ## Install rabbitmq-server and its dependencies
 apt-get install rabbitmq-server -y --fix-missing
+
+## Enable RabbitMQ Management plugins
+rabbitmq-plugins enable rabbitmq_management
+
+## Create RabbitMQ users for remote access
+export RABBITMQ_LOG_BASE=/data/log
+export RABBITMQ_MNESIA_BASE=/data/mnesia
+RABBIT_MQ_UNIQUE_PASSWORD_AND_COOKIE=2a55f70a841f18b97c3a7db939b7adc9e34a0f1b
+echo $RABBIT_MQ_UNIQUE_PASSWORD_AND_COOKIE > /var/lib/rabbitmq/.erlang.cookie
+echo $RABBIT_MQ_UNIQUE_PASSWORD_AND_COOKIE > /root/.erlang.cookie
+chmod 600 /var/lib/rabbitmq/.erlang.cookie
+chown rabbitmq /var/lib/rabbitmq/.erlang.cookie
+chmod 600 /root/.erlang.cookie
+service rabbitmq-server start
+sleep 10
+rabbitmqctl add_user 'symfony-mq' $RABBIT_MQ_UNIQUE_PASSWORD_AND_COOKIE
+rabbitmqctl add_user 'admin-mq' $RABBIT_MQ_UNIQUE_PASSWORD_AND_COOKIE
+rabbitmqctl set_permissions -p "/" "symfony-mq" ".*" ".*" ".*"
+rabbitmqctl set_permissions -p "/" "admin-mq" ".*" ".*" ".*"
+rabbitmqctl set_user_tags admin-mq administrator
+service rabbitmq-server stop
