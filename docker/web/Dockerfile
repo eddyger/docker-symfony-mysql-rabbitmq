@@ -55,7 +55,6 @@ RUN echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com
 RUN apt update
 RUN apt install yarn -y
 RUN apt-get install rsync -y
-RUN apt-get install unoconv -y
 
 RUN mkdir -p /.cache
 RUN mkdir -p /var/www/.cache
