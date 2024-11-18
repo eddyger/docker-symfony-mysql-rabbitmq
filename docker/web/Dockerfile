@@ -90,7 +90,7 @@ RUN echo "xdebug.idekey = VSCODE" >> /etc/php/$PHP_VERSION/mods-available/xdebug
 RUN rm /etc/php/$PHP_VERSION/cli/conf.d/20-xdebug.ini
 
 #amqp for rabbitmq
-RUN apt-get install php$PHP_VERSION-amqp -y
+RUN apt-get update && apt-get install php$PHP_VERSION-amqp -y
 
 ENTRYPOINT ["/script/entrypoint.sh"]
 CMD ["sh"]

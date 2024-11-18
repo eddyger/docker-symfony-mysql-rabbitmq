@@ -26,11 +26,9 @@ services:
       context: ./mysql
       dockerfile: Dockerfile
     ports:
-      - "3306:3306"
+      - "3309:3306"
     volumes:
       - "./../Bdd/mysql-data-files:/var/lib/mysql"
-    expose:
-      - "3306"
     environment:
        - MYSQL_ROOT_PASSWORD='root'
        - MYSQL_ALLOW_EMPTY_PASSWORD=false
