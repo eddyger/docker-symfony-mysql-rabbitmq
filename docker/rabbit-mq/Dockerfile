@@ -5,7 +5,7 @@
 #
 
 # Pull base image.
-FROM debian:bullseye
+FROM debian:bookworm
 
 
 RUN apt-get update && apt-get install curl gnupg wget -y 

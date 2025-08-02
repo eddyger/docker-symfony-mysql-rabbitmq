@@ -4,11 +4,7 @@
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
 
-FROM debian:bullseye-slim
-
-#see http://repo.mysql.com/apt/debian/dists/bullseye/mysql-8.0/binary-amd64/Packages
-ENV MYSQL_MAJOR 8.0
-ENV MYSQL_VERSION 8.0.37-1debian11
+FROM debian:bookworm
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r mysql && useradd -r -g mysql mysql
@@ -61,14 +57,18 @@ RUN set -eux; \
 #       BCA4 3417 C3B4 85DD 128E  C6D4 B7B3 B788 A8D3 785C
 # uid           [ unknown] MySQL Release Engineering <mysql-build@oss.oracle.com>
 # sub   rsa4096 2023-10-23 [E] [expires: 2025-10-22]
+	key='BCA4 3417 C3B4 85DD 128E C6D4 B7B3 B788 A8D3 785C'; \
 	export GNUPGHOME="$(mktemp -d)"; \
+	gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key"; \
 	mkdir -p /etc/apt/keyrings; \
-	gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys B7B3B788A8D3785C; \
-	gpg  --output /etc/apt/keyrings/mysql.gpg --export B7B3B788A8D3785C; \
+	gpg --batch --export "$key" > /etc/apt/keyrings/mysql.gpg; \
 	gpgconf --kill all; \
 	rm -rf "$GNUPGHOME"
-#gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key"; \
-RUN echo 'deb [ signed-by=/etc/apt/keyrings/mysql.gpg ] http://repo.mysql.com/apt/debian/ bullseye mysql-8.0' > /etc/apt/sources.list.d/mysql.list
+
+ENV MYSQL_MAJOR 8.0
+ENV MYSQL_VERSION 8.0.43-1debian12
+
+RUN echo 'deb [ signed-by=/etc/apt/keyrings/mysql.gpg ] http://repo.mysql.com/apt/debian/ bookworm mysql-8.0' > /etc/apt/sources.list.d/mysql.list
 
 # the "/var/lib/mysql" stuff here is because the mysql-server postinst doesn't have an explicit way to disable the mysql_install_db codepath besides having a database already "configured" (ie, stuff in /var/lib/mysql/mysql)
 # also, we set debconf keys to make APT a little quieter

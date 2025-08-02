@@ -1,96 +1,173 @@
-ARG DEBIAN_RELEASE
+ARG DEBIAN_RELEASE=12.11
+
+FROM debian:${DEBIAN_RELEASE} AS builder
+
+ARG PHP_VERSION=8.3
+
+# Set environment variables early to cache them
+ENV TZ=Europe/Paris
+ENV LANG=C.UTF-8
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install all APT packages in a single RUN to reduce layers and cache updates
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        make \
+        git \
+        locales \
+        acl \
+        curl \
+        wget \
+        gnupg \
+        ca-certificates \
+        apt-transport-https \
+        lsb-release \
+        apache2 \
+        php${PHP_VERSION} \
+        php${PHP_VERSION}-pdo-mysql \
+        php${PHP_VERSION}-fpm \
+        php${PHP_VERSION}-dev \
+        php-pear \
+        php${PHP_VERSION}-xml \
+        php${PHP_VERSION}-ldap \
+        php${PHP_VERSION}-zip \
+        php${PHP_VERSION}-curl \
+        php${PHP_VERSION}-gd \
+        php${PHP_VERSION}-mbstring \
+        php${PHP_VERSION}-intl \
+        php${PHP_VERSION}-amqp \
+        unzip \
+        nodejs \
+        yarn \
+        rsync \
+        dos2unix && \
+    # Clean up APT cache to reduce image size
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set timezone and locale
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    update-locale LANG=C.UTF-8
+
+# Install PHP repository (Sury)
+RUN wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add - && \
+    echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list && \
+    apt-get update && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --quiet && \
+    mv composer.phar /usr/local/bin/composer && \
+    composer self-update --2 --quiet
+
+# Install Symfony CLI
+RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.deb.sh' | bash && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends symfony-cli && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Node.js and Yarn
+RUN apt-get update && \
+    apt-get install -y ca-certificates curl gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Yarn
+RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor > /usr/share/keyrings/yarnkey.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list && \
+    apt-get update && \
+    apt-get install -y yarn && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Xdebug via PECL
+RUN pecl install xdebug-3.3.1 && \
+    echo "xdebug.mode=debug" >> /etc/php/${PHP_VERSION}/mods-available/xdebug.ini && \
+    echo "xdebug.client_host=host.docker.internal" >> /etc/php/${PHP_VERSION}/mods-available/xdebug.ini && \
+    echo "xdebug.start_with_request=yes" >> /etc/php/${PHP_VERSION}/mods-available/xdebug.ini && \
+    echo "xdebug.idekey=VSCODE" >> /etc/php/${PHP_VERSION}/mods-available/xdebug.ini
+
+# Final image
 FROM debian:${DEBIAN_RELEASE}
 
-ARG DEBIAN_VERSION
-ARG PHP_VERSION
+# Copy only necessary files from builder
+COPY --from=builder /usr/local/bin/composer /usr/local/bin/composer
+COPY --from=builder /usr/bin/symfony /usr/bin/symfony
+COPY --from=builder /etc/php /etc/php
+COPY --from=builder /usr/lib/php /usr/lib/php
+COPY --from=builder /usr/share/php /usr/share/php
+COPY --from=builder /usr/bin/node /usr/bin/node
+COPY --from=builder /usr/bin/npm /usr/bin/npm
+COPY --from=builder /usr/bin/yarn /usr/bin/yarn
+COPY --from=builder /etc/apt /etc/apt
+COPY --from=builder /usr/share/keyrings/yarnkey.gpg /usr/share/keyrings/yarnkey.gpg
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/timezone /etc/timezone
+COPY --from=builder /etc/localtime /etc/localtime
+COPY --from=builder /etc/locale.gen /etc/locale.gen
+COPY --from=builder /usr/lib/locale /usr/lib/locale
 
-# Some needed packages installation
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get update && apt-get -y install git locales acl vim curl wget gnupg ca-certificates apt-transport-https lsb-release
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        apache2 \
+        php${PHP_VERSION} \
+        php${PHP_VERSION}-pdo-mysql \
+        php${PHP_VERSION}-fpm \
+        php${PHP_VERSION}-xml \
+        php${PHP_VERSION}-ldap \
+        php${PHP_VERSION}-zip \
+        php${PHP_VERSION}-curl \
+        php${PHP_VERSION}-gd \
+        php${PHP_VERSION}-mbstring \
+        php${PHP_VERSION}-intl \
+        php${PHP_VERSION}-amqp \
+        unzip \
+        rsync \
+        dos2unix && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Timezone Paris
-ENV TZ=Europe/Paris
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-# Change the default locale to C.UTF-8
-RUN update-locale LANG=C.UTF-8
-
-# Php install
-RUN apt-get update && apt-get upgrade -y
-RUN wget -q https://packages.sury.org/php/apt.gpg && apt-key add apt.gpg
-RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
-RUN apt-get update --fix-missing
-RUN apt-get install apache2 php$PHP_VERSION-pdo-mysql php$PHP_VERSION-fpm php$PHP_VERSION-dev php$PHP_VERSION-xml php$PHP_VERSION-ldap php$PHP_VERSION-zip unzip php$PHP_VERSION-curl php$PHP_VERSION-gd php$PHP_VERSION-mbstring php$PHP_VERSION-xdebug php$PHP_VERSION-intl -y --allow-unauthenticated
-
-# Composer
-RUN curl -Ss https://getcomposer.org/installer | php > /dev/null
-RUN mv composer.phar /usr/local/bin/composer
-RUN composer self-update --2
-
-# Symfony
-RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.deb.sh' | bash
-RUN apt install symfony-cli
-
-# Copy Apache config (to avoid the error => "Could not determine […] fully qualified domain name"
+# Copy configuration files
 COPY apache/apache2.conf /etc/apache2/apache2.conf
-# ports.conf is usuable for commands running directly in the vm
 COPY apache/ports.conf /etc/apache2/ports.conf
-# Hide server infos
 COPY apache/security.conf /etc/apache2/conf-available/security.conf
-
-# Copy php.ini files for cli and fpm
-COPY php/$PHP_VERSION/cli/php.ini /etc/php/$PHP_VERSION/cli/php.ini
-COPY php/$PHP_VERSION/fpm/php.ini /etc/php/$PHP_VERSION/fpm/php.ini
-COPY php/$PHP_VERSION/fpm/www.conf /etc/php/$PHP_VERSION/fpm/pool.d/www.conf
-
+COPY php/8.x/cli/php.ini /etc/php/${PHP_VERSION}/cli/php.ini
+COPY php/8.x/fpm/php.ini /etc/php/${PHP_VERSION}/fpm/php.ini
+COPY php/8.x/fpm/www.conf /etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
 COPY apache/http-vhosts.conf /etc/apache2/sites-available/http-vhosts.conf
-RUN a2enmod proxy_fcgi
-RUN a2ensite http-vhosts.conf
 
-RUN curl -sL https://deb.nodesource.com/setup_14.x -o nodesource_setup.sh
-RUN bash nodesource_setup.sh
-RUN apt install -y nodejs
-RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr/share/keyrings/yarnkey.gpg >/dev/null
-RUN echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" | tee /etc/apt/sources.list.d/yarn.list
-RUN apt update
-RUN apt install yarn -y
-RUN apt-get install rsync -y
+# Configure Apache
+RUN a2enmod proxy_fcgi && \
+    a2ensite http-vhosts.conf
 
-RUN mkdir -p /.cache
-RUN mkdir -p /var/www/.cache
-RUN mkdir -p /var/www/.config
-RUN chmod 777 -R /var/www/.cache
-RUN chown www-data:www-data -R /var/www
-RUN chmod 775 -R /var/www
+# Set up directories and permissions
+RUN mkdir -p /.cache /var/www/.cache /var/www/.config && \
+    chmod 777 -R /var/www/.cache && \
+    chown www-data:www-data -R /var/www && \
+    chmod 775 -R /var/www
 
-RUN apt-get install dos2unix -y
-RUN apt-get install php$PHP_VERSION-xdebug -y
+# Create user
+RUN groupadd -g 1000 host-user && \
+    useradd -m -u 1000 -g host-user host-user && \
+    usermod -aG www-data host-user
 
-# Add a user and map it to the host user's ID. This creates the "/home/host-user" as home directory (instead of "/" which causes permissions errors with composer and yarn).
-RUN useradd -m host-user
-RUN usermod -u 1000 host-user
-RUN groupmod -g 1000 host-user
-
+# Expose port
 EXPOSE 80
 
+# Copy and configure entrypoint
 COPY entrypoint/entrypoint.sh /script/entrypoint.sh
-RUN chmod 755 /script/entrypoint.sh
-RUN dos2unix  /script/entrypoint.sh
+RUN chmod 755 /script/entrypoint.sh && \
+    dos2unix /script/entrypoint.sh
 
-#xdebug
-RUN pecl install xdebug-3.3.1 \
-    && echo "xdebug.mode=debug" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini \
-    && echo "xdebug.client_host=host.docker.internal" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini \
-    && echo "xdebug.start_with_request=yes" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini
-
-RUN echo "xdebug.idekey = VSCODE" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini
-#RUN echo "xdebug.log = /app/Symfony/xdebug.log" >> /etc/php/$PHP_VERSION/mods-available/xdebug.ini
-
-#don't enable xdebug for cli
-RUN rm /etc/php/$PHP_VERSION/cli/conf.d/20-xdebug.ini
-
-#amqp for rabbitmq
-RUN apt-get update && apt-get install php$PHP_VERSION-amqp -y
-
+# Set entrypoint and default command
 ENTRYPOINT ["/script/entrypoint.sh"]
 CMD ["sh"]
