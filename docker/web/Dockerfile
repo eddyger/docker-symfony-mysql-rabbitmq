@@ -118,6 +118,7 @@ COPY --from=builder /usr/lib/locale /usr/lib/locale
 # Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        git \
         apache2 \
         php${PHP_VERSION} \
         php${PHP_VERSION}-pdo-mysql \
@@ -132,6 +133,7 @@ RUN apt-get update && \
         php${PHP_VERSION}-amqp \
         unzip \
         rsync \
+        ca-certificates \
         dos2unix && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
