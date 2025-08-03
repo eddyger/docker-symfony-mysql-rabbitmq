@@ -5,9 +5,9 @@ services:
     ports:
       - "8094:80"
     volumes:
-      - "./../app:/app"
+      - "../:/app"
     extra_hosts:
-      - "app.loc:127.0.0.1"
+      - "activitytator.loc:127.0.0.1"
       - "host.docker.internal:host-gateway"
     build:
       context: ./web
@@ -23,16 +23,14 @@ services:
     build:
       context: ./mysql
       dockerfile: Dockerfile
+      args:
+        MYSQL_ROOT_PASSWORD_ARG: root
     ports:
       - "3306:3306"
     volumes:
       - "./../Bdd/mysql-data-files:/var/lib/mysql"
     expose:
       - "3306"
-    environment:
-       - MYSQL_ROOT_PASSWORD='root'
-       - MYSQL_ALLOW_EMPTY_PASSWORD=false
-       - MYSQL_RANDOM_ROOT_PASSWORD=false
     
   rabbit-mq:
     container_name: app-rabbit_mq

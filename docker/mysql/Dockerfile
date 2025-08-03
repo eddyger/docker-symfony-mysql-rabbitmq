@@ -7,7 +7,7 @@
 FROM debian:bookworm
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r mysql && useradd -r -g mysql mysql
+RUN groupadd -g 1000 -r mysql && useradd -m -u 1000 -r -g mysql mysql
 
 RUN apt-get update && apt-get install -y --no-install-recommends gnupg && rm -rf /var/lib/apt/lists/*
 
@@ -67,17 +67,22 @@ RUN set -eux; \
 
 ENV MYSQL_MAJOR 8.0
 ENV MYSQL_VERSION 8.0.43-1debian12
+# Accept MYSQL_ROOT_PASSWORD as a build argument
+ARG MYSQL_ROOT_PASSWORD_ARG=root
+
+# Use the argument as the environment variable
+ENV MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_ARG}
 
 RUN echo 'deb [ signed-by=/etc/apt/keyrings/mysql.gpg ] http://repo.mysql.com/apt/debian/ bookworm mysql-8.0' > /etc/apt/sources.list.d/mysql.list
 
 # the "/var/lib/mysql" stuff here is because the mysql-server postinst doesn't have an explicit way to disable the mysql_install_db codepath besides having a database already "configured" (ie, stuff in /var/lib/mysql/mysql)
 # also, we set debconf keys to make APT a little quieter
 RUN { \
-		echo mysql-community-server mysql-community-server/data-dir select ''; \
-		echo mysql-community-server mysql-community-server/root-pass password ''; \
-		echo mysql-community-server mysql-community-server/re-root-pass password ''; \
-		echo mysql-community-server mysql-community-server/remove-test-db select false; \
-	} | debconf-set-selections \
+        echo mysql-community-server mysql-community-server/data-dir select ''; \
+        echo mysql-community-server mysql-community-server/root-pass password "${MYSQL_ROOT_PASSWORD}"; \
+        echo mysql-community-server mysql-community-server/re-root-pass password "${MYSQL_ROOT_PASSWORD}"; \
+        echo mysql-community-server mysql-community-server/remove-test-db select false; \
+    } | debconf-set-selections \
 	&& apt-get update \
 	&& apt-get install -y \
 		mysql-community-client="${MYSQL_VERSION}" \
